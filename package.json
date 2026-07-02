@@ -1,0 +1,16 @@
+{
+  "name": "saig",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SeedCo Agro Intelligence Grid — monorepo root",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace apps/web",
+    "build:web": "npm run build --workspace apps/web",
+    "dev:api": "cd apps/api && .venv\\Scripts\\python -m uvicorn saig.main:app --reload --port 8000",
+    "test:api": "cd apps/api && .venv\\Scripts\\python -m pytest",
+    "lint:api": "cd apps/api && .venv\\Scripts\\python -m ruff check ."
+  }
+}

@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* SAIG design tokens (docs/07-design/design-system.md) — dark is primary. */
+@theme {
+  --color-background: hsl(222 47% 7%);
+  --color-card: hsl(222 40% 10%);
+  --color-elevated: hsl(222 36% 13%);
+  --color-border: hsl(220 26% 18%);
+  --color-foreground: hsl(210 30% 96%);
+  --color-muted: hsl(215 16% 62%);
+  --color-primary: hsl(152 65% 45%);
+  --color-primary-foreground: hsl(222 47% 7%);
+  --color-accent: hsl(199 90% 55%);
+  --color-destructive: hsl(0 72% 55%);
+  --color-warning: hsl(38 92% 55%);
+  --color-success: hsl(152 65% 45%);
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius-card: 10px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numeric alignment in tables and KPIs */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-import saig.shared.database  # custom column types (GUID, TZDateTime)  # noqa: F401
+import saig.shared.database  # custom column types (GUID, TZDateTime)
 
 
 revision: str = 'b2630ec2033c'

@@ -68,3 +68,31 @@ def polygon_area_hectares(polygon: GeoJSONPolygon) -> float:
 def validate_lat_lng(latitude: float, longitude: float) -> None:
     if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
         raise ValueError("coordinates out of WGS84 range")
+
+
+# ~0.05° ≈ 5.5 km at the equator — the weather ingestion grid resolution.
+WEATHER_CELL_SIZE_DEG = 0.05
+
+
+def weather_cell(latitude: float, longitude: float) -> tuple[str, float, float]:
+    """Snap a coordinate to its grid cell. Returns (key, cell_lat, cell_lng).
+
+    Farms in the same cell share one weather series, bounding external API
+    cost by geography rather than farm count (schema.sql: intel.weather_cells).
+    """
+    cell_lat = round(round(latitude / WEATHER_CELL_SIZE_DEG) * WEATHER_CELL_SIZE_DEG, 3)
+    cell_lng = round(round(longitude / WEATHER_CELL_SIZE_DEG) * WEATHER_CELL_SIZE_DEG, 3)
+    return f"{cell_lat:.3f},{cell_lng:.3f}", cell_lat, cell_lng
+
+
+def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance in km — used for disease-outbreak clustering."""
+    r = 6371.0088
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    )
+    return 2 * r * math.asin(math.sqrt(a))

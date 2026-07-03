@@ -25,6 +25,15 @@ PERMISSION_CATALOG: dict[str, str] = {
     # Seed catalog (Phase 1)
     "varieties:read": "View the seed variety catalog",
     "varieties:manage": "Manage seed varieties and region suitability",
+    # Weather & crop health (Phase 2)
+    "weather:read": "View weather forecasts, history and agro-indicators",
+    "crops:report": "File crop disease reports",
+    "crops:confirm": "Confirm, treat and resolve disease reports",
+    # Inventory (Phase 2)
+    "inventory:read": "View warehouses, stock and transfers",
+    "inventory:manage": "Manage warehouses and stock lots",
+    "inventory:move": "Record stock receipts, adjustments and write-offs",
+    "inventory:transfer": "Create and process stock transfers",
 }
 
 # System roles are seeded per organization and cannot be edited or deleted.
@@ -36,6 +45,8 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "farms:read",
         "crops:read",
         "varieties:read",
+        "weather:read",
+        "inventory:read",
     ],
     "Field Officer": [
         "farmers:read",
@@ -45,7 +56,9 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "farms:manage",
         "crops:read",
         "crops:manage",
+        "crops:report",
         "varieties:read",
+        "weather:read",
     ],
     "Agronomist": [
         "farmers:read",
@@ -53,7 +66,17 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "farms:manage",
         "crops:read",
         "crops:manage",
+        "crops:report",
+        "crops:confirm",
         "varieties:read",
         "varieties:manage",
+        "weather:read",
+    ],
+    "Warehouse Manager": [
+        "inventory:read",
+        "inventory:manage",
+        "inventory:move",
+        "inventory:transfer",
+        "varieties:read",
     ],
 }

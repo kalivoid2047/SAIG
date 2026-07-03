@@ -27,6 +27,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { WeatherWidget } from "@/features/weather/WeatherWidget";
 
 const CYCLE_TONES: Record<CropCycle["status"], "neutral" | "accent" | "success" | "warning" | "danger"> = {
   planned: "neutral",
@@ -61,6 +62,8 @@ function FieldRow({ field, farmerId }: { field: FieldPlot; farmerId: string }) {
   const [varietyId, setVarietyId] = useState("");
   const [season, setSeason] = useState("2026-long-rains");
   const [error, setError] = useState<string | null>(null);
+  const [reportCycle, setReportCycle] = useState<string | null>(null);
+  const [report, setReport] = useState({ diseaseId: "", severity: "3", affectedPct: "10" });
 
   const cycles = useQuery({
     queryKey: ["crop-cycles", field.id],
@@ -73,6 +76,30 @@ function FieldRow({ field, farmerId }: { field: FieldPlot; farmerId: string }) {
     queryKey: ["varieties"],
     queryFn: () => api<Variety[]>("/api/v1/varieties"),
     enabled: cycleOpen,
+  });
+  const diseases = useQuery({
+    queryKey: ["diseases"],
+    queryFn: () => api<{ id: string; name: string; crop: string }[]>("/api/v1/diseases"),
+    enabled: reportCycle !== null,
+  });
+
+  const fileReport = useMutation({
+    mutationFn: () =>
+      api("/api/v1/disease-reports", {
+        method: "POST",
+        body: {
+          cropCycleId: reportCycle,
+          diseaseId: report.diseaseId || null,
+          severity: Number(report.severity),
+          affectedPct: Number(report.affectedPct),
+        },
+      }),
+    onSuccess: () => {
+      setReportCycle(null);
+      invalidate();
+    },
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Could not file report."),
   });
 
   const startCycle = useMutation({
@@ -141,10 +168,95 @@ function FieldRow({ field, farmerId }: { field: FieldPlot; farmerId: string }) {
                     → {to}
                   </Button>
                 ))}
+              {hasPermission("crops:report") &&
+                ["planted", "growing"].includes(cycle.status) && (
+                  <Button
+                    variant="ghost"
+                    className="px-2 py-0.5 text-xs text-warning"
+                    onClick={() => {
+                      setReport({ diseaseId: "", severity: "3", affectedPct: "10" });
+                      setError(null);
+                      setReportCycle(cycle.id);
+                    }}
+                  >
+                    ⚠ Report disease
+                  </Button>
+                )}
             </li>
           ))}
         </ul>
       )}
+
+      <Dialog
+        open={reportCycle !== null}
+        onClose={() => setReportCycle(null)}
+        title="Report crop disease"
+      >
+        <form
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            setError(null);
+            fileReport.mutate();
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <Label htmlFor={`rd-${field.id}`}>Disease (optional — leave blank if unidentified)</Label>
+            <Select
+              id={`rd-${field.id}`}
+              value={report.diseaseId}
+              onChange={(e) => setReport({ ...report, diseaseId: e.target.value })}
+            >
+              <option value="">— Unidentified —</option>
+              {(diseases.data ?? []).map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} ({d.crop})
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor={`rs-${field.id}`}>Severity</Label>
+              <Select
+                id={`rs-${field.id}`}
+                value={report.severity}
+                onChange={(e) => setReport({ ...report, severity: e.target.value })}
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n} / 5
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor={`ra-${field.id}`}>Affected %</Label>
+              <Input
+                id={`ra-${field.id}`}
+                type="number"
+                min="0"
+                max="100"
+                required
+                value={report.affectedPct}
+                onChange={(e) => setReport({ ...report, affectedPct: e.target.value })}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted">
+            The report is geotagged from this farm and scanned for outbreak clusters automatically.
+          </p>
+          <ErrorNote message={error} />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setReportCycle(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={fileReport.isPending}>
+              File report
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
       <Dialog open={cycleOpen} onClose={() => setCycleOpen(false)} title={`New cycle — ${field.name}`}>
         <form
@@ -242,6 +354,9 @@ function FarmCard({ farm, farmerId }: { farm: Farm; farmerId: string }) {
             + Field
           </Button>
         )}
+      </div>
+      <div className="mt-3">
+        <WeatherWidget farmId={farm.id} />
       </div>
       <div className="mt-3 space-y-2">
         {farm.fields.length === 0 && (

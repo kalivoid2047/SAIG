@@ -1,5 +1,6 @@
 """Demo dataset for local development: regions, varieties, farmers, farms,
-fields and crop cycles around the Kenyan Rift Valley.
+fields, crop cycles, plus Phase 2 diseases, disease reports (with an
+outbreak cluster), warehouses, lots and stock — around the Kenyan Rift Valley.
 
 Usage:
     python -m saig.scripts.seed_demo
@@ -11,12 +12,15 @@ Requires the base seed (org + roles) to have run first.
 import asyncio
 import random
 import sys
+from datetime import date
 
 from sqlalchemy import select
 
 from saig.modules.catalog.models import SeedVariety, VarietySuitability
+from saig.modules.crophealth.models import Disease, DiseaseReport
 from saig.modules.fieldops.models import CropCycle, Farm, Farmer, FieldPlot, Region
-from saig.modules.iam.models import Organization
+from saig.modules.iam.models import Organization, User
+from saig.modules.inventory.models import StockLot, StockMovement, Warehouse
 from saig.shared.config import get_settings
 from saig.shared.database import create_engine_and_sessionmaker, utcnow
 
@@ -78,8 +82,15 @@ async def main() -> None:
         session.add_all(varieties)
         await session.flush()
 
+        admin = (
+            await session.execute(
+                select(User).where(User.organization_id == org.id, User.deleted_at.is_(None))
+            )
+        ).scalars().first()
+
         season = "2026-long-rains"
         farmer_count = 0
+        cycles: list[tuple[CropCycle, float, float]] = []
         for region in regions:
             base_lat, base_lng = CENTROIDS[region.code]
             for _ in range(6):
@@ -120,18 +131,87 @@ async def main() -> None:
                 await session.flush()
 
                 if rng.random() < 0.8:
-                    session.add(
-                        CropCycle(
-                            field_id=field.id,
-                            variety_id=rng.choice(varieties).id,
-                            season=season,
-                            status=rng.choice(["planted", "growing"]),
-                        )
+                    cycle = CropCycle(
+                        field_id=field.id,
+                        variety_id=rng.choice(varieties).id,
+                        season=season,
+                        status=rng.choice(["planted", "growing"]),
                     )
+                    session.add(cycle)
+                    await session.flush()
+                    cycles.append((cycle, round(lat, 6), round(lng, 6)))
+
+        # --- Phase 2: crop health -------------------------------------------
+        blight = Disease(organization_id=org.id, name="Maize Leaf Blight",
+                         crop="maize", pathogen_type="fungal",
+                         treatment_guide="Apply fungicide; remove infected residue.")
+        rust = Disease(organization_id=org.id, name="Wheat Stem Rust",
+                       crop="wheat", pathogen_type="fungal")
+        session.add_all([blight, rust])
+        await session.flush()
+
+        report_count = 0
+        if admin is not None and cycles:
+            # Scattered individual reports
+            for cycle, lat, lng in rng.sample(cycles, min(5, len(cycles))):
+                session.add(DiseaseReport(
+                    organization_id=org.id, crop_cycle_id=cycle.id, disease_id=blight.id,
+                    reported_by=admin.id, severity=rng.randint(2, 3),
+                    affected_pct=rng.uniform(5, 25), latitude=lat, longitude=lng,
+                ))
+                report_count += 1
+            # A tight cluster (>=3 within 10km) flagged as an outbreak
+            east_lat, east_lng = CENTROIDS["EAST"]
+            for i in range(3):
+                cycle = cycles[i % len(cycles)][0]
+                session.add(DiseaseReport(
+                    organization_id=org.id, crop_cycle_id=cycle.id, disease_id=blight.id,
+                    reported_by=admin.id, severity=4, affected_pct=35,
+                    latitude=round(east_lat + i * 0.01, 6),
+                    longitude=round(east_lng + i * 0.01, 6),
+                    is_outbreak=True,
+                ))
+                report_count += 1
+
+        # --- Phase 2: inventory ---------------------------------------------
+        warehouses = []
+        for name, code, rcode in [("Nakuru Central", "WH-NAK", "RIFT"),
+                                  ("Machakos Depot", "WH-MAC", "EAST")]:
+            region = next(r for r in regions if r.code == rcode)
+            wlat, wlng = CENTROIDS[rcode]
+            wh = Warehouse(organization_id=org.id, region_id=region.id, name=name,
+                           code=code, latitude=wlat, longitude=wlng,
+                           capacity_kg=600_000, manager_id=admin.id if admin else None)
+            session.add(wh)
+            warehouses.append(wh)
+        await session.flush()
+
+        lots = []
+        for i, variety in enumerate(varieties):
+            lot = StockLot(
+                organization_id=org.id, variety_id=variety.id,
+                lot_number=f"L-2026-{i + 1:03d}",
+                produced_at=date(2026, 1, 15), expires_at=date(2027, 6, 30),
+                germination_pct=round(rng.uniform(88, 96), 1),
+            )
+            session.add(lot)
+            lots.append(lot)
+        await session.flush()
+
+        if admin is not None:
+            for wh in warehouses:
+                for lot in lots:
+                    session.add(StockMovement(
+                        warehouse_id=wh.id, lot_id=lot.id, movement_type="receipt",
+                        quantity_kg=round(rng.uniform(20_000, 120_000), 1),
+                        performed_by=admin.id, reference="opening balance",
+                    ))
 
         await session.commit()
         print(f"Demo data: {len(regions)} regions, {len(varieties)} varieties, "
-              f"{farmer_count} farmers with farms/fields/cycles.")
+              f"{farmer_count} farmers, {len(cycles)} crop cycles, "
+              f"{report_count} disease reports, {len(warehouses)} warehouses, "
+              f"{len(lots)} lots with stock.")
     await engine.dispose()
 
 

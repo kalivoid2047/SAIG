@@ -13,6 +13,8 @@ import { FarmerDetailPage } from "@/features/fieldops/FarmerDetailPage";
 import { MapPage } from "@/features/fieldops/MapPage";
 import { RegionsPage } from "@/features/fieldops/RegionsPage";
 import { VarietiesPage } from "@/features/catalog/VarietiesPage";
+import { DiseaseReportsPage } from "@/features/crophealth/DiseaseReportsPage";
+import { InventoryPage } from "@/features/inventory/InventoryPage";
 
 function Protected() {
   const { status } = useAuth();
@@ -54,6 +56,12 @@ export function AppRouter() {
           </Route>
           <Route element={<RequirePermission permission="varieties:read" />}>
             <Route path="/varieties" element={<VarietiesPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="crops:read" />}>
+            <Route path="/disease-reports" element={<DiseaseReportsPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="inventory:read" />}>
+            <Route path="/inventory" element={<InventoryPage />} />
           </Route>
           <Route element={<RequirePermission permission="regions:manage" />}>
             <Route path="/admin/regions" element={<RegionsPage />} />

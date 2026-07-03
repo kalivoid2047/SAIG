@@ -5,6 +5,8 @@ from httpx import ASGITransport, AsyncClient
 
 from saig.app import create_app
 from saig.modules.iam.models import Organization, User
+from saig.modules.weather.deps import get_weather_provider
+from saig.modules.weather.provider import FakeWeatherProvider
 from saig.scripts.seed import sync_permissions, sync_system_roles
 from saig.shared.config import Settings
 from saig.shared.database import Base, create_engine_and_sessionmaker
@@ -52,6 +54,9 @@ async def ctx(tmp_path) -> TestContext:
         cookie_secure=False,
     )
     app = create_app(settings)
+    # Never hit the network in tests: inject the deterministic weather provider.
+    app.dependency_overrides[get_weather_provider] = lambda: FakeWeatherProvider()
+
     engine, session_factory = create_engine_and_sessionmaker(settings.database_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

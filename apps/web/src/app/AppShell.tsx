@@ -11,9 +11,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Home", icon: "▣" },
+  { to: "/", label: "Dashboard", icon: "▣" },
   { to: "/farmers", label: "Farmers", icon: "❋", permission: "farmers:read" },
   { to: "/map", label: "Map", icon: "▦", permission: "farms:read" },
+  { to: "/disease-reports", label: "Disease reports", icon: "⚠", permission: "crops:read" },
+  { to: "/inventory", label: "Inventory", icon: "▤", permission: "inventory:read" },
   { to: "/varieties", label: "Varieties", icon: "🌱", permission: "varieties:read" },
   { to: "/admin/regions", label: "Regions", icon: "◫", permission: "regions:manage" },
   { to: "/admin/users", label: "Users", icon: "◉", permission: "users:read" },

@@ -12,6 +12,9 @@ from saig.shared.database import Base
 from saig.modules.iam import models as iam_models  # noqa: F401
 from saig.modules.fieldops import models as fieldops_models  # noqa: F401
 from saig.modules.catalog import models as catalog_models  # noqa: F401
+from saig.modules.weather import models as weather_models  # noqa: F401
+from saig.modules.crophealth import models as crophealth_models  # noqa: F401
+from saig.modules.inventory import models as inventory_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

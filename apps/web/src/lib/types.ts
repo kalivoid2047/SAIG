@@ -182,6 +182,132 @@ export interface FarmFeatureCollection {
   features: FarmFeature[];
 }
 
+// --- Phase 2: weather, crop health, inventory, dashboard -----------------
+
+export interface DailyWeather {
+  day: string;
+  rainfallMm: number | null;
+  tempMinC: number | null;
+  tempMaxC: number | null;
+  humidityPct: number | null;
+  windKmh: number | null;
+}
+
+export interface WeatherForecast {
+  cellKey: string;
+  latitude: number;
+  longitude: number;
+  source: string;
+  issuedAt: string | null;
+  stale: boolean;
+  days: DailyWeather[];
+}
+
+export interface AgroIndicators {
+  cellKey: string;
+  windowDays: number;
+  rainfall7dMm: number | null;
+  rainfall30dMm: number | null;
+  rainfall90dMm: number | null;
+  growingDegreeDays: number | null;
+  heatStressDays: number;
+  dataPoints: number;
+  asOf: string | null;
+}
+
+export interface Disease {
+  id: string;
+  name: string;
+  crop: string;
+  pathogenType: string | null;
+  description: string | null;
+  treatmentGuide: string | null;
+}
+
+export interface DiseaseReport {
+  id: string;
+  cropCycleId: string;
+  diseaseId: string | null;
+  reportedBy: string;
+  severity: number;
+  affectedPct: number;
+  status: "reported" | "confirmed" | "treated" | "resolved" | "dismissed";
+  latitude: number;
+  longitude: number;
+  notes: string | null;
+  isOutbreak: boolean;
+  reportedAt: string;
+}
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  code: string;
+  latitude: number;
+  longitude: number;
+  regionId: string | null;
+  capacityKg: number | null;
+}
+
+export interface StockLot {
+  id: string;
+  varietyId: string;
+  lotNumber: string;
+  producedAt: string;
+  expiresAt: string;
+  germinationPct: number | null;
+}
+
+export interface StockBalance {
+  warehouseId: string;
+  lotId: string;
+  varietyId: string;
+  lotNumber: string;
+  expiresAt: string;
+  balanceKg: number;
+  expiringSoon: boolean;
+}
+
+export interface StockTransfer {
+  id: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  lotId: string;
+  quantityKg: number;
+  receivedKg: number | null;
+  status: "pending" | "dispatched" | "received" | "cancelled";
+  varianceNote: string | null;
+  createdAt: string;
+}
+
+export interface DashboardKpis {
+  activeFarmers: number;
+  activeCropCycles: number;
+  harvestedCycles: number;
+  seedVarieties: number;
+  warehouses: number;
+  totalStockKg: number;
+  lotsExpiringSoon: number;
+  openDiseaseReports: number;
+  activeOutbreaks: number;
+  pendingTransfers: number;
+}
+
+export interface DiseaseFeatureCollection {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    geometry: { type: "Point"; coordinates: [number, number] };
+    properties: {
+      id: string;
+      severity: number;
+      status: string;
+      isOutbreak: boolean;
+      affectedPct: number;
+    };
+  }[];
+}
+
 export interface TokenResponse {
   accessToken: string;
   expiresIn: number;

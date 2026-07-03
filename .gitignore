@@ -27,5 +27,6 @@ Thumbs.db
 
 # Build artifacts
 apps/web/dist/
+*.tsbuildinfo
 coverage/
 htmlcov/

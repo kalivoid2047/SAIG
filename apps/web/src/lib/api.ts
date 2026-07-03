@@ -61,7 +61,7 @@ export async function tryRefresh(): Promise<boolean> {
 }
 
 export interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: Json;
   params?: Record<string, string | number | boolean | undefined>;
   /** internal: prevents infinite refresh loops */

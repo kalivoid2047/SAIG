@@ -6,6 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from saig import __version__
+from saig.modules.catalog import routes as catalog_routes
+from saig.modules.fieldops import routes as fieldops_routes
 from saig.modules.iam.deps import get_db
 from saig.modules.iam.routes import audit, auth, orgs, roles, users
 from saig.shared.config import Settings, get_settings
@@ -45,7 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["authorization", "content-type", "x-request-id"],
     )
 
@@ -56,6 +58,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(roles.router, prefix=API_PREFIX)
     app.include_router(orgs.router, prefix=API_PREFIX)
     app.include_router(audit.router, prefix=API_PREFIX)
+    app.include_router(fieldops_routes.regions_router, prefix=API_PREFIX)
+    app.include_router(fieldops_routes.farmers_router, prefix=API_PREFIX)
+    app.include_router(fieldops_routes.farms_router, prefix=API_PREFIX)
+    app.include_router(fieldops_routes.crops_router, prefix=API_PREFIX)
+    app.include_router(fieldops_routes.gis_router, prefix=API_PREFIX)
+    app.include_router(catalog_routes.router, prefix=API_PREFIX)
 
     @app.get("/health/live", tags=["health"])
     async def live() -> dict:

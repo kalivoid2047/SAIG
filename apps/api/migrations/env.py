@@ -10,6 +10,8 @@ from saig.shared.database import Base
 
 # Import all model modules so metadata is complete for autogenerate.
 from saig.modules.iam import models as iam_models  # noqa: F401
+from saig.modules.fieldops import models as fieldops_models  # noqa: F401
+from saig.modules.catalog import models as catalog_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

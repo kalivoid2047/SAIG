@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import field_validator, model_validator
@@ -6,12 +7,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_JWT_SECRET = "dev-secret-do-not-use-in-production"  # noqa: S105
 
+# apps/api — anchor for the default dev database so it does not depend on
+# the process working directory (uvicorn may be launched from the repo root).
+API_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_SQLITE_URL = f"sqlite+aiosqlite:///{(API_DIR / 'saig_dev.db').as_posix()}"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: Literal["development", "test", "staging", "production"] = "development"
-    database_url: str = "sqlite+aiosqlite:///./saig_dev.db"
+    database_url: str = DEFAULT_SQLITE_URL
 
     jwt_secret: str = DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"

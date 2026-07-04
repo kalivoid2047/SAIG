@@ -13,6 +13,7 @@ from saig.modules.fieldops import routes as fieldops_routes
 from saig.modules.iam.deps import get_db
 from saig.modules.iam.routes import audit, auth, orgs, roles, users
 from saig.modules.inventory import routes as inventory_routes
+from saig.modules.supplychain import routes as supplychain_routes
 from saig.modules.weather import routes as weather_routes
 from saig.shared.config import Settings, get_settings
 from saig.shared.database import create_engine_and_sessionmaker
@@ -73,6 +74,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(crophealth_routes.reports_router, prefix=API_PREFIX)
     app.include_router(crophealth_routes.gis_router, prefix=API_PREFIX)
     app.include_router(inventory_routes.router, prefix=API_PREFIX)
+    app.include_router(supplychain_routes.vehicles_router, prefix=API_PREFIX)
+    app.include_router(supplychain_routes.orders_router, prefix=API_PREFIX)
+    app.include_router(supplychain_routes.routes_router, prefix=API_PREFIX)
+    app.include_router(supplychain_routes.deliveries_router, prefix=API_PREFIX)
+    app.include_router(supplychain_routes.gis_router, prefix=API_PREFIX)
     app.include_router(dashboard_routes.router, prefix=API_PREFIX)
 
     @app.get("/health/live", tags=["health"])

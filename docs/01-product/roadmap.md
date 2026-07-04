@@ -4,6 +4,15 @@ Delivery is organized into **6 phases**. Each phase ships production-deployable 
 
 Rationale for ordering: **data foundations before models, models before AI copilot** — ML and RAG are only as good as the data capture built in Phases 1–2, and the copilot's grounded-SQL layer requires stable curated views over that data.
 
+## Delivery status
+
+> Built on the revised stack ([ADR-0001](../adr/0001-python-backend-no-docker.md): Python/FastAPI, Docker-free).
+
+- **Phase 0 — Platform Foundation:** ✅ Complete (IAM, auth+RBAC, admin UI, CI).
+- **Phase 1 — Field Data Foundation:** ✅ Complete (farmers, farms/fields, crop cycles, seed catalog, GIS v1).
+- **Phase 2 — Operational Intelligence:** ✅ Complete (weather, crop health + outbreak detection, inventory ledger, supply chain, executive dashboard v1). 71 backend tests green.
+- **Phase 3 — Predictive Core:** ⏭️ Next (Python ML service: yield, demand, risk).
+
 ---
 
 ## Phase 0 — Platform Foundation (Weeks 1–4)

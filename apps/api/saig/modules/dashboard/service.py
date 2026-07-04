@@ -7,6 +7,7 @@ from saig.modules.dashboard.schemas import DashboardKpis
 from saig.modules.fieldops.models import CropCycle, Farm, Farmer, FieldPlot
 from saig.modules.inventory.models import StockTransfer, Warehouse
 from saig.modules.inventory.repository import InventoryRepository
+from saig.modules.supplychain.models import Order, RoutePlan
 
 EXPIRY_SOON_DAYS = 90
 
@@ -84,6 +85,20 @@ class DashboardService:
             )
         )
 
+        open_orders = await self._count(
+            select(func.count(Order.id)).where(
+                Order.organization_id == organization_id,
+                Order.deleted_at.is_(None),
+                Order.status.in_(("pending", "confirmed")),
+            )
+        )
+        active_routes = await self._count(
+            select(func.count(RoutePlan.id)).where(
+                RoutePlan.organization_id == organization_id,
+                RoutePlan.status == "dispatched",
+            )
+        )
+
         inv = InventoryRepository(self.session)
         total_stock = await inv.total_stock_kg(organization_id)
         expiring = await inv.expiring_lots(organization_id, EXPIRY_SOON_DAYS)
@@ -99,4 +114,6 @@ class DashboardService:
             openDiseaseReports=open_reports,
             activeOutbreaks=active_outbreaks,
             pendingTransfers=pending_transfers,
+            openOrders=open_orders,
+            activeRoutes=active_routes,
         )

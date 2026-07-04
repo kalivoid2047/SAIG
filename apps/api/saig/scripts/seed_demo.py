@@ -21,6 +21,14 @@ from saig.modules.crophealth.models import Disease, DiseaseReport
 from saig.modules.fieldops.models import CropCycle, Farm, Farmer, FieldPlot, Region
 from saig.modules.iam.models import Organization, User
 from saig.modules.inventory.models import StockLot, StockMovement, Warehouse
+from saig.modules.supplychain.models import (
+    Delivery,
+    Order,
+    OrderItem,
+    RoutePlan,
+    RouteStop,
+    Vehicle,
+)
 from saig.shared.config import get_settings
 from saig.shared.database import create_engine_and_sessionmaker, utcnow
 
@@ -207,11 +215,60 @@ async def main() -> None:
                         performed_by=admin.id, reference="opening balance",
                     ))
 
+        # --- Phase 2: supply chain ------------------------------------------
+        vehicles = [
+            Vehicle(organization_id=org.id, registration=reg, capacity_kg=cap,
+                    driver_id=admin.id if admin else None)
+            for reg, cap in [("KAA-101A", 10_000), ("KBB-202B", 15_000)]
+        ]
+        session.add_all(vehicles)
+        await session.flush()
+
+        origin = warehouses[0]
+        order_count = 0
+        route = None
+        if admin is not None:
+            orders = []
+            east_lat, east_lng = CENTROIDS["EAST"]
+            for i in range(3):
+                dealer = rng.choice(["Umoja", "Green Valley", "Rift"])
+                order = Order(
+                    organization_id=org.id,
+                    customer_name=f"{dealer} Agrodealer {i + 1}",
+                    destination_lat=round(east_lat + rng.uniform(-0.3, 0.3), 6),
+                    destination_lng=round(east_lng + rng.uniform(-0.3, 0.3), 6),
+                    status="confirmed",
+                    created_by=admin.id,
+                    items=[OrderItem(variety_id=rng.choice(varieties).id,
+                                     quantity_kg=round(rng.uniform(200, 1500), 1))],
+                )
+                session.add(order)
+                orders.append(order)
+                order_count += 1
+            await session.flush()
+
+            # One dispatched route with sequenced stops (nearest-neighbour + deliveries)
+            route = RoutePlan(
+                organization_id=org.id, origin_warehouse_id=origin.id,
+                vehicle_id=vehicles[0].id, driver_id=admin.id, status="dispatched",
+                planned_date=date(2026, 8, 1), total_distance_km=142.5,
+                optimizer_meta={"method": "nearest_neighbour", "stops": len(orders)},
+            )
+            for seq, order in enumerate(orders, start=1):
+                route.stops.append(RouteStop(order_id=order.id, stop_sequence=seq))
+            session.add(route)
+            await session.flush()
+            vehicles[0].status = "on_route"
+            for order in orders:
+                session.add(Delivery(order_id=order.id, route_plan_id=route.id,
+                                     status="in_transit"))
+
         await session.commit()
         print(f"Demo data: {len(regions)} regions, {len(varieties)} varieties, "
               f"{farmer_count} farmers, {len(cycles)} crop cycles, "
               f"{report_count} disease reports, {len(warehouses)} warehouses, "
-              f"{len(lots)} lots with stock.")
+              f"{len(lots)} lots with stock, {len(vehicles)} vehicles, "
+              f"{order_count} orders, 1 dispatched route.")
     await engine.dispose()
 
 

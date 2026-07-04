@@ -291,6 +291,72 @@ export interface DashboardKpis {
   openDiseaseReports: number;
   activeOutbreaks: number;
   pendingTransfers: number;
+  openOrders: number;
+  activeRoutes: number;
+}
+
+export interface Vehicle {
+  id: string;
+  registration: string;
+  capacityKg: number;
+  status: "available" | "on_route" | "maintenance" | "retired";
+  driverId: string | null;
+}
+
+export interface OrderItem {
+  id: string;
+  varietyId: string;
+  quantityKg: number;
+  unitPrice: number | null;
+}
+
+export interface Order {
+  id: string;
+  customerName: string;
+  regionId: string | null;
+  destinationLat: number;
+  destinationLng: number;
+  status: "pending" | "confirmed" | "fulfilled" | "cancelled";
+  requestedDate: string | null;
+  createdAt: string;
+  items: OrderItem[];
+}
+
+export interface RouteStop {
+  id: string;
+  orderId: string;
+  stopSequence: number;
+  eta: string | null;
+}
+
+export interface RoutePlan {
+  id: string;
+  originWarehouseId: string;
+  vehicleId: string | null;
+  driverId: string | null;
+  status: "draft" | "planned" | "dispatched" | "completed" | "cancelled";
+  plannedDate: string;
+  totalDistanceKm: number | null;
+  optimizerMeta: Record<string, unknown> | null;
+  stops: RouteStop[];
+}
+
+export interface Delivery {
+  id: string;
+  orderId: string;
+  routePlanId: string | null;
+  status: "pending" | "assigned" | "in_transit" | "delivered" | "failed";
+  deliveredAt: string | null;
+  createdAt: string;
+}
+
+export interface RouteFeatureCollection {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    geometry: { type: "LineString"; coordinates: [number, number][] };
+    properties: { id: string; status: string; stops: number; distanceKm: number };
+  }[];
 }
 
 export interface DiseaseFeatureCollection {

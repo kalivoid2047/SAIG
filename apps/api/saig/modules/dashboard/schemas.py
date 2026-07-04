@@ -12,3 +12,5 @@ class DashboardKpis(BaseModel):
     openDiseaseReports: int
     activeOutbreaks: int
     pendingTransfers: int
+    openOrders: int
+    activeRoutes: int

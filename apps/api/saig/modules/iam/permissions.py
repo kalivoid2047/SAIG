@@ -34,6 +34,11 @@ PERMISSION_CATALOG: dict[str, str] = {
     "inventory:manage": "Manage warehouses and stock lots",
     "inventory:move": "Record stock receipts, adjustments and write-offs",
     "inventory:transfer": "Create and process stock transfers",
+    # Supply chain (Phase 2)
+    "logistics:read": "View vehicles, orders, routes and deliveries",
+    "logistics:manage": "Manage vehicles and customer orders",
+    "logistics:plan": "Plan and dispatch delivery routes",
+    "logistics:track": "Record delivery check-ins and status updates",
 }
 
 # System roles are seeded per organization and cannot be edited or deleted.
@@ -78,5 +83,17 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "inventory:move",
         "inventory:transfer",
         "varieties:read",
+    ],
+    "Supply Chain Manager": [
+        "logistics:read",
+        "logistics:manage",
+        "logistics:plan",
+        "inventory:read",
+        "varieties:read",
+        "farms:read",
+    ],
+    "Driver": [
+        "logistics:read",
+        "logistics:track",
     ],
 }

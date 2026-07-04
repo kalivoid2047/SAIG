@@ -93,6 +93,8 @@ export function HomePage() {
               tone={kpis.data.pendingTransfers > 0 ? "warning" : undefined}
               to="/inventory"
             />
+            <Kpi label="Open orders" value={kpis.data.openOrders} to="/logistics" />
+            <Kpi label="Active routes" value={kpis.data.activeRoutes} to="/logistics" />
           </div>
 
           {kpis.data.activeOutbreaks > 0 && (

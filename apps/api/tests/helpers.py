@@ -81,3 +81,43 @@ async def make_lot(
     )
     assert res.status_code == 201, res.text
     return res.json()["id"]
+
+
+async def make_vehicle(
+    ctx: TestContext, token: str, registration: str = "KAA-001A", capacity_kg: float = 10000
+) -> str:
+    res = await ctx.client.post(
+        "/api/v1/vehicles", headers=ctx.auth(token),
+        json={"registration": registration, "capacityKg": capacity_kg},
+    )
+    assert res.status_code == 201, res.text
+    return res.json()["id"]
+
+
+async def make_order(
+    ctx: TestContext,
+    token: str,
+    variety_id: str,
+    lat: float = -0.30,
+    lng: float = 35.95,
+    quantity_kg: float = 500,
+    confirm: bool = True,
+) -> str:
+    res = await ctx.client.post(
+        "/api/v1/orders", headers=ctx.auth(token),
+        json={
+            "customerName": "Test Customer",
+            "destinationLat": lat,
+            "destinationLng": lng,
+            "items": [{"varietyId": variety_id, "quantityKg": quantity_kg}],
+        },
+    )
+    assert res.status_code == 201, res.text
+    order_id = res.json()["id"]
+    if confirm:
+        r = await ctx.client.post(
+            f"/api/v1/orders/{order_id}/status", headers=ctx.auth(token),
+            json={"status": "confirmed"},
+        )
+        assert r.status_code == 200, r.text
+    return order_id

@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { api } from "@/lib/api";
-import type { DiseaseFeatureCollection, FarmFeatureCollection, Region } from "@/lib/types";
+import type {
+  DiseaseFeatureCollection,
+  FarmFeatureCollection,
+  Region,
+  RouteFeatureCollection,
+} from "@/lib/types";
 import { Card, PageHeader, Spinner } from "@/components/ui";
 
 const KENYA_CENTER: [number, number] = [-0.2, 36.5];
@@ -19,6 +24,7 @@ function severityColor(severity: number): string {
 export function MapPage() {
   const [showFarms, setShowFarms] = useState(true);
   const [showDisease, setShowDisease] = useState(true);
+  const [showRoutes, setShowRoutes] = useState(true);
 
   const farms = useQuery({
     queryKey: ["gis", "farms"],
@@ -27,6 +33,10 @@ export function MapPage() {
   const disease = useQuery({
     queryKey: ["gis", "disease"],
     queryFn: () => api<DiseaseFeatureCollection>("/api/v1/gis/disease-heatmap"),
+  });
+  const routes = useQuery({
+    queryKey: ["gis", "routes"],
+    queryFn: () => api<RouteFeatureCollection>("/api/v1/gis/routes/active"),
   });
   const regions = useQuery({
     queryKey: ["regions"],
@@ -67,6 +77,13 @@ export function MapPage() {
             Disease reports
           </span>
         </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={showRoutes} onChange={(e) => setShowRoutes(e.target.checked)} />
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-3 w-1 rounded" style={{ background: "hsl(199 90% 55%)" }} />
+            Active routes
+          </span>
+        </label>
       </div>
 
       {(farms.isLoading || disease.isLoading) && <Spinner label="Loading map layers…" />}
@@ -77,6 +94,23 @@ export function MapPage() {
               attribution='&copy; OpenStreetMap &copy; CARTO'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             />
+
+            {showRoutes &&
+              routes.data?.features.map((f) => (
+                <Polyline
+                  key={f.properties.id}
+                  positions={f.geometry.coordinates.map(([lng, lat]) => [lat, lng])}
+                  pathOptions={{ color: "hsl(199 90% 55%)", weight: 3, opacity: 0.7, dashArray: "6 6" }}
+                >
+                  <Popup>
+                    <div style={{ fontSize: 13 }}>
+                      <strong>Active route</strong>
+                      <br />
+                      {f.properties.stops} stops · {f.properties.distanceKm} km
+                    </div>
+                  </Popup>
+                </Polyline>
+              ))}
 
             {showFarms &&
               farms.data.features.map((f) => {

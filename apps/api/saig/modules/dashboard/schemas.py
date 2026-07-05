@@ -14,3 +14,5 @@ class DashboardKpis(BaseModel):
     pendingTransfers: int
     openOrders: int
     activeRoutes: int
+    projectedProductionKg: float
+    yieldPredictionCount: int

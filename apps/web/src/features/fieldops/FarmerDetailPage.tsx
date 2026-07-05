@@ -45,6 +45,27 @@ const NEXT_TRANSITIONS: Record<CropCycle["status"], CropCycle["status"][]> = {
   failed: [],
 };
 
+function YieldBadge({ cropCycleId }: { cropCycleId: string }) {
+  const pred = useQuery({
+    queryKey: ["predictions", "yield", cropCycleId],
+    queryFn: () =>
+      api<import("@/lib/types").YieldPrediction[]>("/api/v1/predictions/yield", {
+        params: { cropCycleId },
+      }),
+  });
+  const p = pred.data?.[0];
+  if (!p) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs text-primary"
+      title={`80% interval ${Math.round(p.piLowKgHa)}–${Math.round(p.piHighKgHa)} kg/ha · confidence ${(p.confidence * 100).toFixed(0)}%`}
+    >
+      ✦ {p.predictedYieldKgHa.toLocaleString()} kg/ha
+      {p.lowConfidence && <span className="text-warning">·low</span>}
+    </span>
+  );
+}
+
 function useInvalidateFarmer(farmerId: string) {
   const queryClient = useQueryClient();
   return () => {
@@ -72,6 +93,7 @@ function FieldRow({ field, farmerId }: { field: FieldPlot; farmerId: string }) {
         params: { fieldId: field.id, pageSize: 20 },
       }),
   });
+  const canForecast = hasPermission("forecasts:read");
   const varieties = useQuery({
     queryKey: ["varieties"],
     queryFn: () => api<Variety[]>("/api/v1/varieties"),
@@ -156,6 +178,9 @@ function FieldRow({ field, farmerId }: { field: FieldPlot; farmerId: string }) {
               <span className="text-muted">{cycle.season}</span>
               {cycle.actualYieldKg != null && (
                 <span className="tabular-nums">{cycle.actualYieldKg} kg</span>
+              )}
+              {canForecast && ["planted", "growing"].includes(cycle.status) && (
+                <YieldBadge cropCycleId={cycle.id} />
               )}
               {hasPermission("crops:manage") &&
                 NEXT_TRANSITIONS[cycle.status].map((to) => (

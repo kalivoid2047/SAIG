@@ -30,3 +30,6 @@ apps/web/dist/
 *.tsbuildinfo
 coverage/
 htmlcov/
+
+# ML model artifacts (registry writes here in dev; object storage in prod)
+apps/api/artifacts/

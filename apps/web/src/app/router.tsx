@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { Spinner } from "@/components/ui";
@@ -10,12 +11,19 @@ import { DepartmentsPage } from "@/features/admin/DepartmentsPage";
 import { AuditPage } from "@/features/admin/AuditPage";
 import { FarmersPage } from "@/features/fieldops/FarmersPage";
 import { FarmerDetailPage } from "@/features/fieldops/FarmerDetailPage";
-import { MapPage } from "@/features/fieldops/MapPage";
 import { RegionsPage } from "@/features/fieldops/RegionsPage";
 import { VarietiesPage } from "@/features/catalog/VarietiesPage";
 import { DiseaseReportsPage } from "@/features/crophealth/DiseaseReportsPage";
 import { InventoryPage } from "@/features/inventory/InventoryPage";
 import { LogisticsPage } from "@/features/supplychain/LogisticsPage";
+
+// Heavy routes are code-split so Leaflet and Recharts load on demand (NFR-P4).
+const MapPage = lazy(() =>
+  import("@/features/fieldops/MapPage").then((m) => ({ default: m.MapPage })),
+);
+const ForecastsPage = lazy(() =>
+  import("@/features/predictions/ForecastsPage").then((m) => ({ default: m.ForecastsPage })),
+);
 
 function Protected() {
   const { status } = useAuth();
@@ -29,7 +37,9 @@ function Protected() {
   if (status === "anonymous") return <Navigate to="/login" replace />;
   return (
     <AppShell>
-      <Outlet />
+      <Suspense fallback={<Spinner label="Loading…" />}>
+        <Outlet />
+      </Suspense>
     </AppShell>
   );
 }
@@ -66,6 +76,9 @@ export function AppRouter() {
           </Route>
           <Route element={<RequirePermission permission="logistics:read" />}>
             <Route path="/logistics" element={<LogisticsPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="forecasts:read" />}>
+            <Route path="/forecasts" element={<ForecastsPage />} />
           </Route>
           <Route element={<RequirePermission permission="regions:manage" />}>
             <Route path="/admin/regions" element={<RegionsPage />} />

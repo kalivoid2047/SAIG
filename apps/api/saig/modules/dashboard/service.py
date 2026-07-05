@@ -7,6 +7,7 @@ from saig.modules.dashboard.schemas import DashboardKpis
 from saig.modules.fieldops.models import CropCycle, Farm, Farmer, FieldPlot
 from saig.modules.inventory.models import StockTransfer, Warehouse
 from saig.modules.inventory.repository import InventoryRepository
+from saig.modules.predictions.repository import PredictionsRepository
 from saig.modules.supplychain.models import Order, RoutePlan
 
 EXPIRY_SOON_DAYS = 90
@@ -103,6 +104,26 @@ class DashboardService:
         total_stock = await inv.total_stock_kg(organization_id)
         expiring = await inv.expiring_lots(organization_id, EXPIRY_SOON_DAYS)
 
+        # Projected production: latest yield prediction x field area, per cycle.
+        preds = await PredictionsRepository(self.session).latest_yield_predictions(
+            organization_id
+        )
+        projected = 0.0
+        if preds:
+            areas = dict(
+                (
+                    await self.session.execute(
+                        select(CropCycle.id, FieldPlot.area_ha)
+                        .join(FieldPlot, FieldPlot.id == CropCycle.field_id)
+                        .where(CropCycle.id.in_([p.crop_cycle_id for p in preds]))
+                    )
+                ).all()
+            )
+            projected = sum(
+                float(p.predicted_yield_kg_ha) * float(areas.get(p.crop_cycle_id, 0) or 0)
+                for p in preds
+            )
+
         return DashboardKpis(
             activeFarmers=active_farmers,
             activeCropCycles=active_cycles,
@@ -116,4 +137,6 @@ class DashboardService:
             pendingTransfers=pending_transfers,
             openOrders=open_orders,
             activeRoutes=active_routes,
+            projectedProductionKg=round(projected, 2),
+            yieldPredictionCount=len(preds),
         )

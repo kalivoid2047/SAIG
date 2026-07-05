@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/disease-reports", label: "Disease reports", icon: "⚠", permission: "crops:read" },
   { to: "/inventory", label: "Inventory", icon: "▤", permission: "inventory:read" },
   { to: "/logistics", label: "Supply chain", icon: "⇶", permission: "logistics:read" },
+  { to: "/forecasts", label: "Forecasts", icon: "◔", permission: "forecasts:read" },
   { to: "/varieties", label: "Varieties", icon: "🌱", permission: "varieties:read" },
   { to: "/admin/regions", label: "Regions", icon: "◫", permission: "regions:manage" },
   { to: "/admin/users", label: "Users", icon: "◉", permission: "users:read" },

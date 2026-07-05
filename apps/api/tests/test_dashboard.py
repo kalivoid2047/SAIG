@@ -41,6 +41,8 @@ async def test_dashboard_kpis_reflect_state(ctx: TestContext):
     assert kpis["openDiseaseReports"] == 0
     assert kpis["openOrders"] == 0
     assert kpis["activeRoutes"] == 0
+    assert kpis["projectedProductionKg"] == 0
+    assert kpis["yieldPredictionCount"] == 0
 
 
 async def test_dashboard_is_org_scoped(ctx: TestContext):

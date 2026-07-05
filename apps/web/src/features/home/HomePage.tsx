@@ -95,6 +95,11 @@ export function HomePage() {
             />
             <Kpi label="Open orders" value={kpis.data.openOrders} to="/logistics" />
             <Kpi label="Active routes" value={kpis.data.activeRoutes} to="/logistics" />
+            <Kpi
+              label="Projected production"
+              value={kpis.data.yieldPredictionCount > 0 ? kg(kpis.data.projectedProductionKg) : "—"}
+              to="/forecasts"
+            />
           </div>
 
           {kpis.data.activeOutbreaks > 0 && (

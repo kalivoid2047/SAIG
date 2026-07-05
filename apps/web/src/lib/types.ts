@@ -293,6 +293,8 @@ export interface DashboardKpis {
   pendingTransfers: number;
   openOrders: number;
   activeRoutes: number;
+  projectedProductionKg: number;
+  yieldPredictionCount: number;
 }
 
 export interface Vehicle {
@@ -348,6 +350,52 @@ export interface Delivery {
   status: "pending" | "assigned" | "in_transit" | "delivered" | "failed";
   deliveredAt: string | null;
   createdAt: string;
+}
+
+// --- Phase 3: predictions ----------------------------------------------------
+
+export interface ModelVersion {
+  id: string;
+  modelName: string;
+  version: string;
+  status: "trained" | "evaluated" | "promoted" | "retired";
+  metrics: Record<string, number>;
+  trainingRows: number | null;
+  promotedAt: string | null;
+  createdAt: string;
+}
+
+export interface YieldPrediction {
+  id: string;
+  cropCycleId: string;
+  predictedYieldKgHa: number;
+  piLowKgHa: number;
+  piHighKgHa: number;
+  confidence: number;
+  lowConfidence: boolean;
+  createdAt: string;
+}
+
+export interface DemandForecastPoint {
+  periodMonth: string;
+  forecastQtyKg: number;
+  piLowKg: number;
+  piHighKg: number;
+  confidence: number;
+  seasonalComponent: number | null;
+}
+
+export interface DemandSeries {
+  regionId: string;
+  varietyId: string;
+  modelVersion: string;
+  points: DemandForecastPoint[];
+}
+
+export interface JobResult {
+  status: string;
+  detail: string;
+  count: number;
 }
 
 export interface RouteFeatureCollection {

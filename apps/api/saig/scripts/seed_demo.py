@@ -10,6 +10,7 @@ Requires the base seed (org + roles) to have run first.
 """
 
 import asyncio
+import math
 import random
 import sys
 from datetime import date
@@ -18,9 +19,17 @@ from sqlalchemy import select
 
 from saig.modules.catalog.models import SeedVariety, VarietySuitability
 from saig.modules.crophealth.models import Disease, DiseaseReport
-from saig.modules.fieldops.models import CropCycle, Farm, Farmer, FieldPlot, Region
+from saig.modules.fieldops.models import (
+    CropCycle,
+    Farm,
+    Farmer,
+    FieldPlot,
+    ProductionRecord,
+    Region,
+)
 from saig.modules.iam.models import Organization, User
 from saig.modules.inventory.models import StockLot, StockMovement, Warehouse
+from saig.modules.predictions.models import SalesHistory
 from saig.modules.supplychain.models import (
     Delivery,
     Order,
@@ -49,6 +58,11 @@ LAST = ["Mwangi", "Ochieng", "Kamau", "Wanjiku", "Otieno", "Njoroge", "Chebet", 
 
 # Rough centroids per region code (lat, lng)
 CENTROIDS = {"EAST": (-1.45, 37.95), "RIFT": (-0.30, 35.95), "WEST": (0.30, 34.60)}
+
+
+def _add_months_seed(d: date, n: int) -> date:
+    m = d.month - 1 + n
+    return date(d.year + m // 12, m % 12 + 1, 1)
 
 
 async def main() -> None:
@@ -149,6 +163,19 @@ async def main() -> None:
                     await session.flush()
                     cycles.append((cycle, round(lat, 6), round(lng, 6)))
 
+                # Historical production records (yield-model training data):
+                # realised yield ≈ variety potential x a noisy achievement ratio.
+                for past in ("2024-long-rains", "2025-long-rains"):
+                    v = rng.choice(varieties)
+                    area = round(rng.uniform(0.5, 4.0), 2)
+                    ratio = rng.uniform(0.55, 0.85) + 0.02 * (v.drought_tolerance or 3)
+                    yield_kg_ha = float(v.yield_potential_kg_ha or 5000) * min(ratio, 0.95)
+                    session.add(ProductionRecord(
+                        farmer_id=farmer.id, season=past, variety_id=v.id,
+                        area_ha=area, yield_kg=round(yield_kg_ha * area, 1),
+                        source="migrated",
+                    ))
+
         # --- Phase 2: crop health -------------------------------------------
         blight = Disease(organization_id=org.id, name="Maize Leaf Blight",
                          crop="maize", pathogen_type="fungal",
@@ -215,6 +242,25 @@ async def main() -> None:
                         performed_by=admin.id, reference="opening balance",
                     ))
 
+        # --- Phase 3: sales history (demand-model training data) ------------
+        # 24 months per regionxvariety with a seasonal shape + gentle trend.
+        base_month = date(2024, 7, 1)
+        sales_rows = 0
+        for region in regions:
+            for variety in varieties:
+                base = rng.uniform(800, 2500)
+                trend = rng.uniform(-5, 25)
+                for m in range(24):
+                    month = _add_months_seed(base_month, m)
+                    seasonal = 1.0 + 0.35 * math.sin((month.month / 12) * 2 * math.pi)
+                    qty = max(base * seasonal + trend * m + rng.uniform(-120, 120), 0.0)
+                    session.add(SalesHistory(
+                        organization_id=org.id, region_id=region.id, variety_id=variety.id,
+                        period_month=month, quantity_kg=round(qty, 1),
+                        revenue=round(qty * rng.uniform(2.5, 4.0), 2),
+                    ))
+                    sales_rows += 1
+
         # --- Phase 2: supply chain ------------------------------------------
         vehicles = [
             Vehicle(organization_id=org.id, registration=reg, capacity_kg=cap,
@@ -268,7 +314,8 @@ async def main() -> None:
               f"{farmer_count} farmers, {len(cycles)} crop cycles, "
               f"{report_count} disease reports, {len(warehouses)} warehouses, "
               f"{len(lots)} lots with stock, {len(vehicles)} vehicles, "
-              f"{order_count} orders, 1 dispatched route.")
+              f"{order_count} orders, 1 dispatched route, "
+              f"{sales_rows} sales-history rows (train with train_models).")
     await engine.dispose()
 
 

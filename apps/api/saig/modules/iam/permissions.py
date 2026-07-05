@@ -39,6 +39,10 @@ PERMISSION_CATALOG: dict[str, str] = {
     "logistics:manage": "Manage vehicles and customer orders",
     "logistics:plan": "Plan and dispatch delivery routes",
     "logistics:track": "Record delivery check-ins and status updates",
+    # Predictive core (Phase 3)
+    "forecasts:read": "View yield predictions and demand forecasts",
+    "forecasts:trigger": "Trigger re-scoring and forecast runs",
+    "models:read": "View the ML model registry",
 }
 
 # System roles are seeded per organization and cannot be edited or deleted.
@@ -52,6 +56,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "varieties:read",
         "weather:read",
         "inventory:read",
+        "forecasts:read",
     ],
     "Field Officer": [
         "farmers:read",
@@ -76,6 +81,9 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "varieties:read",
         "varieties:manage",
         "weather:read",
+        "forecasts:read",
+        "forecasts:trigger",
+        "models:read",
     ],
     "Warehouse Manager": [
         "inventory:read",
@@ -91,6 +99,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "inventory:read",
         "varieties:read",
         "farms:read",
+        "forecasts:read",
     ],
     "Driver": [
         "logistics:read",

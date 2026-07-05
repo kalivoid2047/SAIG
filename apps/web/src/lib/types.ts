@@ -295,6 +295,7 @@ export interface DashboardKpis {
   activeRoutes: number;
   projectedProductionKg: number;
   yieldPredictionCount: number;
+  highRiskCount: number;
 }
 
 export interface Vehicle {
@@ -396,6 +397,33 @@ export interface JobResult {
   status: string;
   detail: string;
   count: number;
+}
+
+export interface RiskFactor {
+  factor: string;
+  weight: number;
+  value: number;
+  contribution: number;
+}
+
+export interface RiskDomain {
+  domain: string;
+  score: number;
+  band: "low" | "medium" | "high";
+  previousScore: number | null;
+  trend: number;
+  factors: RiskFactor[];
+}
+
+export interface RiskBoard {
+  assessedDate: string | null;
+  domains: RiskDomain[];
+  highRiskCount: number;
+}
+
+export interface RiskHistoryPoint {
+  assessedDate: string;
+  score: number;
 }
 
 export interface RouteFeatureCollection {

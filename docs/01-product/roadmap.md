@@ -11,7 +11,7 @@ Rationale for ordering: **data foundations before models, models before AI copil
 - **Phase 0 — Platform Foundation:** ✅ Complete (IAM, auth+RBAC, admin UI, CI).
 - **Phase 1 — Field Data Foundation:** ✅ Complete (farmers, farms/fields, crop cycles, seed catalog, GIS v1).
 - **Phase 2 — Operational Intelligence:** ✅ Complete (weather, crop health + outbreak detection, inventory ledger, supply chain, executive dashboard v1).
-- **Phase 3 — Predictive Core:** 🔄 In progress — **yield prediction + demand forecasting shipped** (in-process ML plane, [ADR-0003](../adr/0003-in-process-ml-plane.md): sklearn gradient-boosted trees, model registry with lineage, training CLI, Forecasts UI). **Remaining:** risk intelligence (6-domain scoring), OR-Tools route optimization, model-evaluation dashboard. 77 backend tests green.
+- **Phase 3 — Predictive Core:** 🔄 In progress — **yield prediction, demand forecasting, and risk intelligence shipped** (in-process ML plane, [ADR-0003](../adr/0003-in-process-ml-plane.md): sklearn gradient-boosted trees, model registry with lineage, training CLI; six-domain risk board with factor decomposition, trend + history, drill-down). **Remaining:** OR-Tools route optimization (replacing the Phase-2 nearest-neighbour heuristic), model-evaluation dashboard. 88 backend tests green.
 - **Phase 4 — AI Layer:** ⏭️ Recommendations, copilot (RAG), documents, scenarios.
 
 ---

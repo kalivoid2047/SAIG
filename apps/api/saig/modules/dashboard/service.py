@@ -8,6 +8,7 @@ from saig.modules.fieldops.models import CropCycle, Farm, Farmer, FieldPlot
 from saig.modules.inventory.models import StockTransfer, Warehouse
 from saig.modules.inventory.repository import InventoryRepository
 from saig.modules.predictions.repository import PredictionsRepository
+from saig.modules.risk.repository import RiskRepository
 from saig.modules.supplychain.models import Order, RoutePlan
 
 EXPIRY_SOON_DAYS = 90
@@ -139,4 +140,5 @@ class DashboardService:
             activeRoutes=active_routes,
             projectedProductionKg=round(projected, 2),
             yieldPredictionCount=len(preds),
+            highRiskCount=await RiskRepository(self.session).high_risk_count(organization_id),
         )

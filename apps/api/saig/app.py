@@ -14,6 +14,7 @@ from saig.modules.iam.deps import get_db
 from saig.modules.iam.routes import audit, auth, orgs, roles, users
 from saig.modules.inventory import routes as inventory_routes
 from saig.modules.predictions import routes as predictions_routes
+from saig.modules.risk import routes as risk_routes
 from saig.modules.supplychain import routes as supplychain_routes
 from saig.modules.weather import routes as weather_routes
 from saig.shared.config import Settings, get_settings
@@ -83,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(predictions_routes.forecasts_router, prefix=API_PREFIX)
     app.include_router(predictions_routes.predictions_router, prefix=API_PREFIX)
     app.include_router(predictions_routes.models_router, prefix=API_PREFIX)
+    app.include_router(risk_routes.router, prefix=API_PREFIX)
     app.include_router(dashboard_routes.router, prefix=API_PREFIX)
 
     @app.get("/health/live", tags=["health"])

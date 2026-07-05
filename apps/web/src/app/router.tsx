@@ -24,6 +24,9 @@ const MapPage = lazy(() =>
 const ForecastsPage = lazy(() =>
   import("@/features/predictions/ForecastsPage").then((m) => ({ default: m.ForecastsPage })),
 );
+const RiskBoardPage = lazy(() =>
+  import("@/features/risk/RiskBoardPage").then((m) => ({ default: m.RiskBoardPage })),
+);
 
 function Protected() {
   const { status } = useAuth();
@@ -79,6 +82,9 @@ export function AppRouter() {
           </Route>
           <Route element={<RequirePermission permission="forecasts:read" />}>
             <Route path="/forecasts" element={<ForecastsPage />} />
+          </Route>
+          <Route element={<RequirePermission permission="risks:read" />}>
+            <Route path="/risks" element={<RiskBoardPage />} />
           </Route>
           <Route element={<RequirePermission permission="regions:manage" />}>
             <Route path="/admin/regions" element={<RegionsPage />} />

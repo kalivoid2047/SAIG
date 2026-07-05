@@ -32,12 +32,13 @@ async def make_farmer(ctx: TestContext, token: str, phone: str = "+254712345678"
 
 
 async def make_farm(
-    ctx: TestContext, token: str, farmer_id: str, lat: float = -0.30, lng: float = 35.95
+    ctx: TestContext, token: str, farmer_id: str, lat: float = -0.30, lng: float = 35.95,
+    region_id: str | None = None,
 ) -> str:
-    res = await ctx.client.post(
-        "/api/v1/farms", headers=ctx.auth(token),
-        json={"farmerId": farmer_id, "name": "Test Farm", "latitude": lat, "longitude": lng},
-    )
+    body = {"farmerId": farmer_id, "name": "Test Farm", "latitude": lat, "longitude": lng}
+    if region_id is not None:
+        body["regionId"] = region_id
+    res = await ctx.client.post("/api/v1/farms", headers=ctx.auth(token), json=body)
     assert res.status_code == 201, res.text
     return res.json()["id"]
 

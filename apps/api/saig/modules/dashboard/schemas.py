@@ -16,3 +16,4 @@ class DashboardKpis(BaseModel):
     activeRoutes: int
     projectedProductionKg: float
     yieldPredictionCount: int
+    highRiskCount: int

@@ -100,6 +100,12 @@ export function HomePage() {
               value={kpis.data.yieldPredictionCount > 0 ? kg(kpis.data.projectedProductionKg) : "—"}
               to="/forecasts"
             />
+            <Kpi
+              label="High risks"
+              value={kpis.data.highRiskCount}
+              tone={kpis.data.highRiskCount > 0 ? "danger" : undefined}
+              to="/risks"
+            />
           </div>
 
           {kpis.data.activeOutbreaks > 0 && (

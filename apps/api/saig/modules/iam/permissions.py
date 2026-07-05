@@ -43,6 +43,8 @@ PERMISSION_CATALOG: dict[str, str] = {
     "forecasts:read": "View yield predictions and demand forecasts",
     "forecasts:trigger": "Trigger re-scoring and forecast runs",
     "models:read": "View the ML model registry",
+    "risks:read": "View the risk board and history",
+    "risks:compute": "Trigger risk recomputation",
 }
 
 # System roles are seeded per organization and cannot be edited or deleted.
@@ -57,6 +59,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "weather:read",
         "inventory:read",
         "forecasts:read",
+        "risks:read",
     ],
     "Field Officer": [
         "farmers:read",
@@ -84,6 +87,7 @@ SYSTEM_ROLES: dict[str, list[str]] = {
         "forecasts:read",
         "forecasts:trigger",
         "models:read",
+        "risks:read",
     ],
     "Warehouse Manager": [
         "inventory:read",

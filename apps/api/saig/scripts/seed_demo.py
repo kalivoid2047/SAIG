@@ -30,6 +30,7 @@ from saig.modules.fieldops.models import (
 from saig.modules.iam.models import Organization, User
 from saig.modules.inventory.models import StockLot, StockMovement, Warehouse
 from saig.modules.predictions.models import SalesHistory
+from saig.modules.risk.service import RiskService
 from saig.modules.supplychain.models import (
     Delivery,
     Order,
@@ -38,6 +39,7 @@ from saig.modules.supplychain.models import (
     RouteStop,
     Vehicle,
 )
+from saig.modules.weather.provider import OpenMeteoProvider
 from saig.shared.config import get_settings
 from saig.shared.database import create_engine_and_sessionmaker, utcnow
 
@@ -310,12 +312,18 @@ async def main() -> None:
                                      status="in_transit"))
 
         await session.commit()
+
+        # --- Phase 3: initial risk board ------------------------------------
+        # Climate uses the weather provider (degrades gracefully if offline).
+        risk_written = await RiskService(session, OpenMeteoProvider()).recompute(org.id, None)
+
         print(f"Demo data: {len(regions)} regions, {len(varieties)} varieties, "
               f"{farmer_count} farmers, {len(cycles)} crop cycles, "
               f"{report_count} disease reports, {len(warehouses)} warehouses, "
               f"{len(lots)} lots with stock, {len(vehicles)} vehicles, "
               f"{order_count} orders, 1 dispatched route, "
-              f"{sales_rows} sales-history rows (train with train_models).")
+              f"{sales_rows} sales-history rows, {risk_written} risk assessments "
+              f"(train with train_models).")
     await engine.dispose()
 
 

@@ -18,6 +18,8 @@ from sqlalchemy import select
 
 from saig.modules.iam.models import Organization
 from saig.modules.predictions.service import PredictionService, TrainingService
+from saig.modules.risk.service import RiskService
+from saig.modules.weather.provider import OpenMeteoProvider
 from saig.shared.config import get_settings
 from saig.shared.database import create_engine_and_sessionmaker
 from saig.shared.errors import AppError
@@ -56,6 +58,10 @@ async def main(also_score: bool) -> None:
                     print(f"[{org.name}] generated {n} demand forecast points")
                 except AppError as exc:
                     print(f"[{org.name}] demand forecast skipped: {exc.detail}", file=sys.stderr)
+
+                # Refresh the risk board now that prediction signals are fresh.
+                n = await RiskService(session, OpenMeteoProvider()).recompute(org.id, None)
+                print(f"[{org.name}] recomputed {n} risk assessments")
 
     await engine.dispose()
     print("Training complete.")

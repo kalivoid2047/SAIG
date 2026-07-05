@@ -20,7 +20,10 @@ from saig.shared.errors import DomainError, NotFoundError
 
 
 def _version_str() -> str:
-    return utcnow().strftime("%Y%m%d.%H%M%S")
+    # Microsecond precision so retraining within the same second never collides
+    # on the (org, model_name, version) unique key.
+    now = utcnow()
+    return f"{now.strftime('%Y%m%d.%H%M%S')}.{now.microsecond:06d}"
 
 
 class TrainingService:

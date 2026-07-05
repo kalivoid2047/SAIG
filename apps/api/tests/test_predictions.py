@@ -143,6 +143,28 @@ async def test_retraining_retires_previous_version(ctx: TestContext):
     assert len(retired) >= 1
 
 
+async def test_demand_accuracy_backtest(ctx: TestContext):
+    token = await ctx.login()
+    _region, _variety, _cycle = await _seed_training_data(ctx, token)
+    # 24 months of clean seasonal-ish data → backtest should evaluate the segment
+    res = await ctx.client.get("/api/v1/forecasts/demand/accuracy", headers=ctx.auth(token))
+    assert res.status_code == 200
+    body = res.json()
+    assert body["segmentsEvaluated"] == 1
+    assert body["pointsEvaluated"] > 0
+    assert body["mape"] is not None and body["mape"] >= 0
+
+
+async def test_yield_accuracy_empty_without_harvest(ctx: TestContext):
+    token = await ctx.login()
+    await _seed_training_data(ctx, token)
+    res = await ctx.client.get("/api/v1/predictions/yield/accuracy", headers=ctx.auth(token))
+    assert res.status_code == 200
+    body = res.json()
+    assert body["cyclesEvaluated"] == 0
+    assert body["mape"] is None
+
+
 async def test_forecasts_permission_and_isolation(ctx: TestContext):
     # A viewer can read forecasts but not trigger runs
     viewer = await ctx.login("viewer@example.com")

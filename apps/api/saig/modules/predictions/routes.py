@@ -4,10 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from saig.modules.iam.deps import CurrentUser, get_db, require_permission
 from saig.modules.predictions.repository import PredictionsRepository
 from saig.modules.predictions.schemas import (
+    DemandAccuracy,
     DemandForecastOut,
     DemandSeriesOut,
     JobResult,
     ModelVersionOut,
+    YieldAccuracy,
     YieldPredictionOut,
     YieldRescoreRequest,
 )
@@ -32,6 +34,15 @@ async def list_yield_predictions(
         return [YieldPredictionOut.model_validate(row)] if row else []
     rows = await repo.latest_yield_predictions(current.organization_id)
     return [YieldPredictionOut.model_validate(r) for r in rows]
+
+
+@predictions_router.get("/yield/accuracy", response_model=YieldAccuracy)
+async def yield_accuracy(
+    current: CurrentUser = Depends(require_permission("forecasts:read")),
+    session: AsyncSession = Depends(get_db),
+) -> YieldAccuracy:
+    result = await PredictionService(session).yield_accuracy(current.organization_id)
+    return YieldAccuracy(**result)
 
 
 @predictions_router.post(
@@ -66,6 +77,15 @@ async def demand_series(
         modelVersion="promoted",
         points=[DemandForecastOut.model_validate(r) for r in rows],
     )
+
+
+@forecasts_router.get("/demand/accuracy", response_model=DemandAccuracy)
+async def demand_accuracy(
+    current: CurrentUser = Depends(require_permission("forecasts:read")),
+    session: AsyncSession = Depends(get_db),
+) -> DemandAccuracy:
+    result = await PredictionService(session).demand_accuracy(current.organization_id)
+    return DemandAccuracy(**result)
 
 
 @forecasts_router.post(

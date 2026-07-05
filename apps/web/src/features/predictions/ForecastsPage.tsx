@@ -11,11 +11,13 @@ import {
 } from "recharts";
 import { api, ApiError } from "@/lib/api";
 import type {
+  DemandAccuracy,
   DemandSeries,
   JobResult,
   ModelVersion,
   Region,
   Variety,
+  YieldAccuracy,
   YieldPrediction,
 } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
@@ -32,7 +34,7 @@ import {
   Th,
 } from "@/components/ui";
 
-type Tab = "demand" | "yield" | "models";
+type Tab = "demand" | "yield" | "accuracy" | "models";
 
 export function ForecastsPage() {
   const { hasPermission } = useAuth();
@@ -41,6 +43,7 @@ export function ForecastsPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "demand", label: "Demand forecast" },
     { id: "yield", label: "Yield predictions" },
+    { id: "accuracy", label: "Model accuracy" },
     { id: "models", label: "Model registry" },
   ];
 
@@ -69,7 +72,94 @@ export function ForecastsPage() {
 
       {tab === "demand" && <DemandTab canTrigger={canTrigger} />}
       {tab === "yield" && <YieldTab canTrigger={canTrigger} />}
+      {tab === "accuracy" && <AccuracyTab />}
       {tab === "models" && <ModelsTab />}
+    </div>
+  );
+}
+
+function AccuracyTab() {
+  const demand = useQuery({
+    queryKey: ["forecast", "demand", "accuracy"],
+    queryFn: () => api<DemandAccuracy>("/api/v1/forecasts/demand/accuracy"),
+  });
+  const yieldAcc = useQuery({
+    queryKey: ["predictions", "yield", "accuracy"],
+    queryFn: () => api<YieldAccuracy>("/api/v1/predictions/yield/accuracy"),
+  });
+
+  const pct = (v: number | null | undefined) =>
+    v == null ? "—" : `${(v * 100).toFixed(1)}%`;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Card>
+        <h3 className="text-sm font-semibold">Demand model — out-of-sample backtest</h3>
+        <p className="mt-1 text-xs text-muted">
+          Rolling-origin: the last 6 months of each segment are held out and forecast, then
+          compared to actual sales.
+        </p>
+        {demand.isLoading && <Spinner />}
+        {demand.data && (
+          <dl className="mt-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted">MAPE (lower is better)</dt>
+              <dd className="tabular-nums font-medium">
+                {demand.data.mape != null ? (
+                  <Badge tone={demand.data.mape <= 0.15 ? "success" : "warning"}>
+                    {pct(demand.data.mape)}
+                  </Badge>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted">Segments evaluated</dt>
+              <dd className="tabular-nums">{demand.data.segmentsEvaluated}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted">Points evaluated</dt>
+              <dd className="tabular-nums">{demand.data.pointsEvaluated}</dd>
+            </div>
+          </dl>
+        )}
+        {demand.data?.mape != null && (
+          <p className="mt-3 text-xs text-muted">
+            Target ≤ 15% (BRD BO-1). {demand.data.mape <= 0.15 ? "Meeting target." : "Above target."}
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-semibold">Yield model — predicted vs. actual</h3>
+        <p className="mt-1 text-xs text-muted">
+          Compares predictions against realised yields on harvested crop cycles.
+        </p>
+        {yieldAcc.isLoading && <Spinner />}
+        {yieldAcc.data && yieldAcc.data.cyclesEvaluated === 0 && (
+          <EmptyState
+            title="No harvested cycles yet"
+            hint="Accuracy appears once predicted cycles are harvested with recorded yields."
+          />
+        )}
+        {yieldAcc.data && yieldAcc.data.cyclesEvaluated > 0 && (
+          <dl className="mt-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted">MAPE</dt>
+              <dd className="tabular-nums font-medium">{pct(yieldAcc.data.mape)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted">MAE (kg/ha)</dt>
+              <dd className="tabular-nums">{yieldAcc.data.mae ?? "—"}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted">Cycles evaluated</dt>
+              <dd className="tabular-nums">{yieldAcc.data.cyclesEvaluated}</dd>
+            </div>
+          </dl>
+        )}
+      </Card>
     </div>
   );
 }

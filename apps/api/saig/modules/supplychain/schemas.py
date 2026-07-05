@@ -98,6 +98,22 @@ class RoutePlanOut(ORMModel):
     stops: list[RouteStopOut] = []
 
 
+class RouteOptimizeRequest(BaseModel):
+    origin_warehouse_id: str = Field(alias="originWarehouseId")
+    planned_date: date = Field(alias="plannedDate")
+    order_ids: list[str] = Field(min_length=1, alias="orderIds")
+    vehicle_ids: list[str] | None = Field(default=None, alias="vehicleIds")
+
+
+class RouteOptimizeResult(BaseModel):
+    method: str
+    routesCreated: int
+    totalDistanceKm: float
+    naiveDistanceKm: float
+    savingsPct: float
+    routes: list[RoutePlanOut]
+
+
 # --- Deliveries --------------------------------------------------------------
 
 class DeliveryEventIn(BaseModel):

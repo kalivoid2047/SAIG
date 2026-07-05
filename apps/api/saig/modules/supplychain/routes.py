@@ -11,6 +11,8 @@ from saig.modules.supplychain.schemas import (
     OrderCreate,
     OrderOut,
     OrderStatusUpdate,
+    RouteOptimizeRequest,
+    RouteOptimizeResult,
     RoutePlanCreate,
     RoutePlanOut,
     VehicleCreate,
@@ -124,6 +126,27 @@ async def create_route(
         body, current.organization_id, current.id
     )
     return RoutePlanOut.model_validate(route)
+
+
+@routes_router.post(
+    "/optimize", response_model=RouteOptimizeResult, status_code=status.HTTP_201_CREATED
+)
+async def optimize_routes(
+    body: RouteOptimizeRequest,
+    current: CurrentUser = Depends(require_permission("logistics:plan")),
+    session: AsyncSession = Depends(get_db),
+) -> RouteOptimizeResult:
+    result, created = await SupplyChainService(session).optimize_routes(
+        body, current.organization_id, current.id
+    )
+    return RouteOptimizeResult(
+        method=result.method,
+        routesCreated=len(created),
+        totalDistanceKm=result.total_distance_km,
+        naiveDistanceKm=result.naive_distance_km,
+        savingsPct=result.savings_pct,
+        routes=[RoutePlanOut.model_validate(r) for r in created],
+    )
 
 
 @routes_router.post("/{route_id}/dispatch", response_model=RoutePlanOut)

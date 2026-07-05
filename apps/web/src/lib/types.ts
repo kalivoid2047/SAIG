@@ -399,6 +399,18 @@ export interface JobResult {
   count: number;
 }
 
+export interface DemandAccuracy {
+  mape: number | null;
+  segmentsEvaluated: number;
+  pointsEvaluated: number;
+}
+
+export interface YieldAccuracy {
+  mape: number | null;
+  mae: number | null;
+  cyclesEvaluated: number;
+}
+
 export interface RiskFactor {
   factor: string;
   weight: number;

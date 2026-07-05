@@ -304,6 +304,7 @@ const ROUTE_TONES = {
 function RoutesTab({ canPlan }: { canPlan: boolean }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"manual" | "optimize">("manual");
   const [form, setForm] = useState({ originWarehouseId: "", vehicleId: "", plannedDate: "" });
   const [orderIds, setOrderIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -351,25 +352,51 @@ function RoutesTab({ canPlan }: { canPlan: boolean }) {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed."),
   });
 
+  const optimize = useMutation({
+    mutationFn: () =>
+      api<{ routesCreated: number; savingsPct: number; method: string; totalDistanceKm: number }>(
+        "/api/v1/routes/optimize",
+        {
+          method: "POST",
+          body: {
+            originWarehouseId: form.originWarehouseId,
+            plannedDate: form.plannedDate,
+            orderIds,
+          },
+        },
+      ),
+    onSuccess: (r) => {
+      setOpen(false);
+      invalidate();
+      alert(
+        `Optimized: ${r.routesCreated} route(s), ${r.totalDistanceKm} km total ` +
+          `(${r.savingsPct}% saved vs. naive, via ${r.method}).`,
+      );
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed."),
+  });
+
   const dispatch = useMutation({
     mutationFn: (id: string) => api(`/api/v1/routes/${id}/dispatch`, { method: "POST" }),
     onSuccess: invalidate,
     onError: (err) => alert(err instanceof ApiError ? err.message : "Failed."),
   });
 
+  function openDialog(next: "manual" | "optimize") {
+    setMode(next);
+    setForm({ originWarehouseId: "", vehicleId: "", plannedDate: "" });
+    setOrderIds([]);
+    setError(null);
+    setOpen(true);
+  }
+
   return (
     <div>
       {canPlan && (
-        <div className="mb-4">
-          <Button
-            onClick={() => {
-              setForm({ originWarehouseId: "", vehicleId: "", plannedDate: "" });
-              setOrderIds([]);
-              setError(null);
-              setOpen(true);
-            }}
-          >
-            + Plan route
+        <div className="mb-4 flex gap-2">
+          <Button onClick={() => openDialog("manual")}>+ Plan route</Button>
+          <Button variant="secondary" onClick={() => openDialog("optimize")}>
+            ⚡ Optimize (VRP)
           </Button>
         </div>
       )}
@@ -393,6 +420,10 @@ function RoutesTab({ canPlan }: { canPlan: boolean }) {
                 <Td className="tabular-nums">{r.stops.length}</Td>
                 <Td className="tabular-nums text-muted">
                   {r.totalDistanceKm != null ? `${r.totalDistanceKm} km` : "—"}
+                  {typeof r.optimizerMeta?.savingsPct === "number" &&
+                    (r.optimizerMeta.savingsPct as number) > 0 && (
+                      <Badge tone="success">−{r.optimizerMeta.savingsPct as number}%</Badge>
+                    )}
                 </Td>
                 <Td>
                   <Badge tone={ROUTE_TONES[r.status]}>{r.status}</Badge>
@@ -414,12 +445,16 @@ function RoutesTab({ canPlan }: { canPlan: boolean }) {
         </Table>
       )}
 
-      <Dialog open={open} onClose={() => setOpen(false)} title="Plan delivery route">
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={mode === "optimize" ? "Optimize delivery routes (VRP)" : "Plan delivery route"}
+      >
         <form
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
             setError(null);
-            create.mutate();
+            (mode === "optimize" ? optimize : create).mutate();
           }}
           className="space-y-4"
         >
@@ -451,23 +486,30 @@ function RoutesTab({ canPlan }: { canPlan: boolean }) {
               />
             </div>
           </div>
-          <div>
-            <Label htmlFor="r-veh">Vehicle (optional)</Label>
-            <Select
-              id="r-veh"
-              value={form.vehicleId}
-              onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}
-            >
-              <option value="">— Unassigned —</option>
-              {(vehicles.data ?? [])
-                .filter((v) => v.status === "available")
-                .map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.registration} ({fmtKg(v.capacityKg)})
-                  </option>
-                ))}
-            </Select>
-          </div>
+          {mode === "manual" ? (
+            <div>
+              <Label htmlFor="r-veh">Vehicle (optional)</Label>
+              <Select
+                id="r-veh"
+                value={form.vehicleId}
+                onChange={(e) => setForm({ ...form, vehicleId: e.target.value })}
+              >
+                <option value="">— Unassigned —</option>
+                {(vehicles.data ?? [])
+                  .filter((v) => v.status === "available")
+                  .map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.registration} ({fmtKg(v.capacityKg)})
+                    </option>
+                  ))}
+              </Select>
+            </div>
+          ) : (
+            <p className="rounded-md border border-border/60 bg-background/50 p-2 text-xs text-muted">
+              The solver assigns orders across all available vehicles under their
+              capacity limits and sequences each route to minimise distance.
+            </p>
+          )}
           <fieldset>
             <legend className="mb-1 block text-xs font-medium text-muted">
               Confirmed orders to include
@@ -499,8 +541,15 @@ function RoutesTab({ canPlan }: { canPlan: boolean }) {
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={create.isPending || orderIds.length === 0}>
-              Plan route
+            <Button
+              type="submit"
+              disabled={create.isPending || optimize.isPending || orderIds.length === 0}
+            >
+              {mode === "optimize"
+                ? optimize.isPending
+                  ? "Optimizing…"
+                  : "Optimize"
+                : "Plan route"}
             </Button>
           </div>
         </form>

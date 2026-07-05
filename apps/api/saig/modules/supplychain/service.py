@@ -2,6 +2,7 @@ from datetime import datetime, time, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from saig.ml import routing
 from saig.modules.fieldops.repository import FieldOpsRepository
 from saig.modules.iam.services.audit_service import AuditService
 from saig.modules.inventory.repository import InventoryRepository
@@ -18,6 +19,7 @@ from saig.modules.supplychain.repository import SupplyChainRepository
 from saig.modules.supplychain.schemas import (
     DeliveryEventIn,
     OrderCreate,
+    RouteOptimizeRequest,
     RoutePlanCreate,
     VehicleCreate,
     VehicleUpdate,
@@ -26,7 +28,7 @@ from saig.shared.database import UTC, utcnow
 from saig.shared.errors import ConflictError, DomainError, NotFoundError
 from saig.shared.geo import haversine_km
 
-AVG_SPEED_KMH = 40.0  # naive ETA model; VRP + real routing arrive with the ML service (FR-SC-4)
+AVG_SPEED_KMH = 40.0  # ETA model: constant road speed + fixed service time per stop
 SERVICE_MINUTES_PER_STOP = 15
 DEPART_HOUR = 8
 
@@ -192,6 +194,99 @@ class SupplyChainService:
         await self.session.commit()
         return route
 
+    async def optimize_routes(
+        self, data: RouteOptimizeRequest, organization_id: str, actor_id: str
+    ) -> tuple[routing.OptimizationResult, list[RoutePlan]]:
+        """Multi-vehicle capacitated VRP (FR-SC-4): assign confirmed orders to
+        available vehicles and sequence each route, reporting distance saved vs.
+        a naive greedy plan."""
+        warehouse = await self.inv_repo.get_warehouse(data.origin_warehouse_id, organization_id)
+        if warehouse is None:
+            raise NotFoundError("Origin warehouse not found.")
+
+        orders = await self.repo.get_orders_by_ids(data.order_ids, organization_id)
+        if len(orders) != len(set(data.order_ids)):
+            raise NotFoundError("One or more orders not found.")
+        if any(o.status != "confirmed" for o in orders):
+            raise DomainError("All orders must be confirmed before routing.")
+        if await self.repo.order_ids_already_routed(organization_id, data.order_ids):
+            raise ConflictError("One or more orders are already on an active route.")
+
+        all_vehicles = await self.repo.list_vehicles(organization_id)
+        available = [v for v in all_vehicles if v.status == "available"]
+        if data.vehicle_ids is not None:
+            wanted = set(data.vehicle_ids)
+            available = [v for v in available if v.id in wanted]
+        if not available:
+            raise DomainError("No available vehicles to plan routes with.")
+
+        stops = [
+            routing.Stop(
+                order_id=o.id,
+                lat=float(o.destination_lat),
+                lng=float(o.destination_lng),
+                demand_kg=sum(float(i.quantity_kg) for i in o.items),
+            )
+            for o in orders
+        ]
+        try:
+            result = routing.optimize(
+                (float(warehouse.latitude), float(warehouse.longitude)),
+                stops,
+                [float(v.capacity_kg) for v in available],
+            )
+        except routing.InfeasibleRouteError as exc:
+            raise DomainError(str(exc)) from exc
+
+        order_by_id = {o.id: o for o in orders}
+        created: list[RoutePlan] = []
+        for vroute in result.routes:
+            vehicle = available[vroute.vehicle_index]
+            route = RoutePlan(
+                organization_id=organization_id,
+                origin_warehouse_id=warehouse.id,
+                vehicle_id=vehicle.id,
+                driver_id=vehicle.driver_id,
+                status="planned",
+                planned_date=data.planned_date,
+                total_distance_km=round(vroute.distance_km, 2),
+                optimizer_meta={
+                    "method": result.method,
+                    "savingsPct": result.savings_pct,
+                    "naiveDistanceKm": result.naive_distance_km,
+                    "stops": len(vroute.order_ids),
+                },
+            )
+            depart = datetime.combine(data.planned_date, time(DEPART_HOUR, 0), tzinfo=UTC)
+            cumulative_km = 0.0
+            prev_lat, prev_lng = float(warehouse.latitude), float(warehouse.longitude)
+            for seq, oid in enumerate(vroute.order_ids, start=1):
+                o = order_by_id[oid]
+                cumulative_km += haversine_km(
+                    prev_lat, prev_lng, float(o.destination_lat), float(o.destination_lng)
+                )
+                travel_min = (
+                    cumulative_km / AVG_SPEED_KMH * 60 + SERVICE_MINUTES_PER_STOP * (seq - 1)
+                )
+                route.stops.append(
+                    RouteStop(
+                        order_id=oid, stop_sequence=seq,
+                        eta=depart + timedelta(minutes=travel_min),
+                    )
+                )
+                prev_lat, prev_lng = float(o.destination_lat), float(o.destination_lng)
+            self.session.add(route)
+            created.append(route)
+
+        await self.session.flush()
+        self.audit.record(
+            "routes.optimize", actor_id=actor_id, organization_id=organization_id,
+            after={"routes": len(created), "method": result.method,
+                   "savingsPct": result.savings_pct},
+        )
+        await self.session.commit()
+        return result, created
+
     async def _route_load(self, orders: list[Order]) -> float:
         total = 0.0
         for order in orders:
@@ -202,8 +297,8 @@ class SupplyChainService:
     def _sequence_nearest_neighbour(
         origin_lat: float, origin_lng: float, orders: list[Order]
     ) -> tuple[list[tuple[Order, float]], float]:
-        """Greedy nearest-neighbour ordering from the warehouse. A heuristic
-        placeholder; the OR-Tools VRP solver lands in the ML service (FR-SC-4)."""
+        """Greedy nearest-neighbour ordering for a single manually-planned route.
+        Multi-vehicle capacitated optimization is `optimize_routes` (FR-SC-4)."""
         remaining = list(orders)
         cur_lat, cur_lng = origin_lat, origin_lng
         sequence: list[tuple[Order, float]] = []

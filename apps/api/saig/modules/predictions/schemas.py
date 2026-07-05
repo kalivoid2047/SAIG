@@ -55,3 +55,15 @@ class JobResult(BaseModel):
     status: str
     detail: str
     count: int = 0
+
+
+class DemandAccuracy(BaseModel):
+    mape: float | None = None
+    segmentsEvaluated: int = 0
+    pointsEvaluated: int = 0
+
+
+class YieldAccuracy(BaseModel):
+    mape: float | None = None
+    mae: float | None = None
+    cyclesEvaluated: int = 0

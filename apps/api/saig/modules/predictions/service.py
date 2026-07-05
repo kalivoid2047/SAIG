@@ -200,3 +200,23 @@ class PredictionService:
         if not rows:
             raise NotFoundError("No demand forecast for this region and variety yet.")
         return rows
+
+    # --- model evaluation ----------------------------------------------------
+
+    async def demand_accuracy(self, organization_id: str) -> dict:
+        rows = await self.repo.sales_history_rows(organization_id)
+        if not rows:
+            return {"mape": None, "segmentsEvaluated": 0, "pointsEvaluated": 0}
+        return DemandModel.backtest(pd.DataFrame(rows))
+
+    async def yield_accuracy(self, organization_id: str) -> dict:
+        pairs = await self.repo.harvested_vs_predicted(organization_id)
+        if not pairs:
+            return {"mape": None, "mae": None, "cyclesEvaluated": 0}
+        errors = [abs(pred - actual) for pred, actual in pairs]
+        pct = [abs(pred - actual) / actual for pred, actual in pairs if actual > 0]
+        return {
+            "mape": round(sum(pct) / len(pct), 4) if pct else None,
+            "mae": round(sum(errors) / len(errors), 2),
+            "cyclesEvaluated": len(pairs),
+        }

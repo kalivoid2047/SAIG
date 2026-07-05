@@ -96,6 +96,40 @@ class DemandModel:
             mae,
         )
 
+    @staticmethod
+    def backtest(df: pd.DataFrame, holdout_months: int = 6) -> dict:
+        """Rolling-origin evaluation: hold out the last `holdout_months` per
+        segment, forecast them from a model trained on the rest, and score
+        out-of-sample MAPE. Honest accuracy that needs no stored past forecasts.
+        """
+        frame = df.copy()
+        frame["period_month"] = pd.to_datetime(frame["period_month"])
+        frame["quantity_kg"] = pd.to_numeric(frame["quantity_kg"], errors="coerce").fillna(0.0)
+
+        abs_pct_errors: list[float] = []
+        segments_evaluated = 0
+        for (region_id, variety_id), grp in frame.groupby(["region_id", "variety_id"]):
+            grp = grp.sort_values("period_month")
+            if len(grp) < MIN_MONTHS_FOR_SEASONAL + holdout_months:
+                continue
+            train = grp.iloc[:-holdout_months]
+            test = grp.iloc[-holdout_months:]
+            model = DemandModel().fit(train)
+            start = test.iloc[0]["period_month"].date().replace(day=1)
+            preds = model.forecast(str(region_id), str(variety_id), start, holdout_months)
+            segments_evaluated += 1
+            for actual, point in zip(test["quantity_kg"].to_numpy(), preds, strict=False):
+                if actual > 0:
+                    abs_pct_errors.append(abs(actual - point.forecast_qty_kg) / actual)
+
+        if not abs_pct_errors:
+            return {"mape": None, "segmentsEvaluated": 0, "pointsEvaluated": 0}
+        return {
+            "mape": round(float(np.mean(abs_pct_errors)), 4),
+            "segmentsEvaluated": segments_evaluated,
+            "pointsEvaluated": len(abs_pct_errors),
+        }
+
     def forecast(
         self, region_id: str, variety_id: str, start_month: date, horizon: int = 12
     ) -> list[DemandPoint]:

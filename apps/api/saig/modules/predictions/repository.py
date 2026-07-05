@@ -112,6 +112,30 @@ class PredictionsRepository:
             )
         return rows
 
+    async def harvested_vs_predicted(self, organization_id: str) -> list[tuple[float, float]]:
+        """(predicted_kg_ha, actual_kg_ha) for harvested cycles that carry a
+        yield prediction — the ground truth for yield-model accuracy."""
+        stmt = (
+            select(
+                YieldPredictionRow.predicted_yield_kg_ha,
+                CropCycle.actual_yield_kg,
+                FieldPlot.area_ha,
+            )
+            .join(CropCycle, CropCycle.id == YieldPredictionRow.crop_cycle_id)
+            .join(FieldPlot, FieldPlot.id == CropCycle.field_id)
+            .join(Farm, Farm.id == FieldPlot.farm_id)
+            .where(
+                Farm.organization_id == organization_id,
+                CropCycle.status == "harvested",
+                CropCycle.actual_yield_kg.isnot(None),
+                FieldPlot.area_ha > 0,
+            )
+        )
+        out = []
+        for predicted, actual_kg, area in (await self.session.execute(stmt)).all():
+            out.append((float(predicted), float(actual_kg) / float(area)))
+        return out
+
     async def sales_history_rows(self, organization_id: str) -> list[dict]:
         stmt = select(
             SalesHistory.region_id,

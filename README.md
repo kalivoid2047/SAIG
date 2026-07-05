@@ -2,7 +2,7 @@
 
 AI-powered agricultural intelligence and decision-support platform for SeedCo: yield prediction, demand forecasting, risk intelligence, supply-chain optimization, an AI executive copilot, and GIS-driven field operations.
 
-> **Status:** 🚧 Active build. **Phases 0–2 complete** (foundation, field data, operational intelligence). **Phase 3 (Predictive ML) next.** Built on the revised stack per [ADR-0001](docs/adr/0001-python-backend-no-docker.md) — **Python backend, Docker-free**.
+> **Status:** 🚧 Active build. **Phases 0–3 complete** (foundation, field data, operational intelligence, predictive ML). **Phase 4 (AI Layer) next.** Built on the revised stack per [ADR-0001](docs/adr/0001-python-backend-no-docker.md) — **Python backend, Docker-free**.
 
 ## Delivery status
 
@@ -11,25 +11,27 @@ AI-powered agricultural intelligence and decision-support platform for SeedCo: y
 | **0 — Platform Foundation** | Auth (JWT + rotating refresh), RBAC, users/orgs/departments, audit log, admin UI, CI | ✅ Complete |
 | **1 — Field Data Foundation** | Farmers (PII-tiered), farms/fields (GeoJSON + area), crop cycles, seed catalog, GIS map | ✅ Complete |
 | **2 — Operational Intelligence** | Weather (Open-Meteo), crop health + outbreak detection, inventory ledger, supply chain, executive dashboard | ✅ Complete |
-| **3 — Predictive Core** | Python ML service: yield, demand, risk scoring | ⏭️ Next |
-| 4 — AI Layer | Recommendations, copilot (RAG), documents, scenarios | Planned |
+| **3 — Predictive Core** | In-process ML: yield prediction, demand forecasting, six-domain risk board, OR-Tools route optimization, model evaluation | ✅ Complete |
+| 4 — AI Layer | Recommendations, copilot (RAG), documents, scenarios | ⏭️ Next |
 | 5 — Delivery Surfaces | Reporting, notifications, hardening, GA | Planned |
 
-**81 backend tests passing.** See the [roadmap](docs/01-product/roadmap.md) for the full plan.
+**97 backend tests passing.** See the [roadmap](docs/01-product/roadmap.md) for the full plan.
 
 ## What's built
 
 - **Identity & access** — Argon2id passwords, 15-min access JWTs, rotating refresh tokens with reuse detection, RBAC (`resource:action` permissions) enforced with per-organization scoping, append-only audit log. System roles: Administrator, Viewer, Field Officer, Agronomist, Warehouse Manager, Supply Chain Manager, Driver.
 - **Field operations** — farmer registration with consent capture, duplicate detection, and a `farmers:read_pii` masking tier; farms with portable lat/lng geo; fields with GeoJSON boundaries + server-computed area; crop cycles with enforced stage transitions; seed-variety catalog with regional suitability.
-- **Operational intelligence** — 14-day weather forecasts + agro-indicators (GDD, rainfall, heat stress) via keyless Open-Meteo; disease reporting with automatic haversine-based outbreak detection; an append-only stock ledger (negative stock impossible) with lots, transfers, and FEFO/expiry; supply chain with vehicles, orders, nearest-neighbour route planning, dispatch and delivery tracking.
-- **Executive dashboard** — live cross-module KPIs; a Leaflet map with farm, disease-heatmap, and active-route layers.
+- **Operational intelligence** — 14-day weather forecasts + agro-indicators (GDD, rainfall, heat stress) via keyless Open-Meteo; disease reporting with automatic haversine-based outbreak detection; an append-only stock ledger (negative stock impossible) with lots, transfers, and FEFO/expiry; supply chain with vehicles, orders, route planning, dispatch and delivery tracking.
+- **Predictive core** — an in-process ML plane ([ADR-0003](docs/adr/0003-in-process-ml-plane.md)): gradient-boosted **yield prediction** (point + 80% interval + confidence) and **demand forecasting** (seasonal + trend, 12-month), with a model registry that stores each prediction's lineage; a **six-domain risk board** (climate, disease, supply chain, inventory, production, financial) with factor decomposition and trend/history; **OR-Tools capacitated route optimization** reporting distance saved vs. naive; and **model evaluation** (rolling-origin demand backtest + yield predicted-vs-actual). Trained offline via a CLI.
+- **Executive dashboard** — live cross-module KPIs incl. projected production and high-risk count; a Leaflet map with farm, disease-heatmap, and active-route layers.
 
 ## Tech stack
 
-**Frontend** React · TypeScript · Vite · Tailwind · React Query · React Router · Leaflet
+**Frontend** React · TypeScript · Vite · Tailwind · React Query · React Router · Leaflet · Recharts
 **Backend** Python 3.12 · FastAPI · SQLAlchemy 2 (async) · Alembic · pydantic v2 · Argon2id · PyJWT · httpx
+**ML** scikit-learn (gradient-boosted trees) · pandas · NumPy · joblib · OR-Tools (VRP)
 **Data** Supabase PostgreSQL (PostGIS + pgvector in later phases) — **SQLite fallback for local dev/tests**
-**Planned** scikit-learn · XGBoost (Phase 3) · OpenAI · LangChain · RAG (Phase 4)
+**Planned** OpenAI · LangChain · RAG (Phase 4)
 **Ops** GitHub Actions · Cloudflare — **no Docker required** ([ADR-0001](docs/adr/0001-python-backend-no-docker.md))
 
 ## Quick start
@@ -44,7 +46,8 @@ python -m venv .venv
 pip install -e ".[dev]"
 alembic upgrade head              # creates a local SQLite dev DB by default
 python -m saig.scripts.seed --password DevAdmin123!   # org, roles, admin user
-python -m saig.scripts.seed_demo  # optional: regions, farmers, weather, stock, routes…
+python -m saig.scripts.seed_demo         # optional: farmers, stock, routes, sales history, risk board
+python -m saig.scripts.train_models --score   # optional: train yield/demand, score, forecast
 uvicorn saig.main:app --reload --port 8000
 
 # Frontend — apps/web (new terminal, from repo root)
@@ -61,8 +64,9 @@ To run against PostgreSQL/Supabase instead of SQLite, set `DATABASE_URL` (see [`
 
 ```bash
 # Backend (from apps/api, venv active)
-python -m pytest            # 81 tests
-python -m ruff check .      # lint
+python -m pytest                       # 97 tests
+python -m ruff check .                 # lint
+python -m saig.scripts.train_models --score   # (re)train ML models + score/forecast/risk
 
 # Frontend (from repo root)
 npm run build --workspace apps/web   # strict tsc + vite production build
@@ -76,10 +80,11 @@ SAIG/
 │   ├── api/                     # FastAPI modular monolith (Python)
 │   │   ├── saig/
 │   │   │   ├── shared/          # config, db, security, errors, middleware, geo
-│   │   │   ├── modules/         # bounded contexts: iam, fieldops, catalog,
-│   │   │   │                    #   weather, crophealth, inventory,
-│   │   │   │                    #   supplychain, dashboard
-│   │   │   ├── scripts/         # seed, seed_demo
+│   │   │   ├── ml/              # pure ML core: registry, yield/demand models, VRP routing
+│   │   │   ├── modules/         # bounded contexts: iam, fieldops, catalog, weather,
+│   │   │   │                    #   crophealth, inventory, supplychain, predictions,
+│   │   │   │                    #   risk, dashboard
+│   │   │   ├── scripts/         # seed, seed_demo, train_models
 │   │   │   ├── app.py           # app factory + router wiring
 │   │   │   └── main.py          # uvicorn entrypoint
 │   │   ├── migrations/          # Alembic
@@ -107,6 +112,6 @@ The complete engineering documentation set lives in [`docs/`](docs/00-INDEX.md):
 - **API** — [REST + WebSocket specification](docs/05-api/api-specification.md)
 - **Engineering** — [Coding standards](docs/06-engineering/coding-standards.md) · [Testing strategy](docs/06-engineering/testing-strategy.md) · [CI/CD](docs/06-engineering/ci-cd.md) · [Deployment guide](docs/06-engineering/deployment-guide.md)
 - **Design** — [UI design system](docs/07-design/design-system.md) · [Wireframes](docs/07-design/wireframes.md)
-- **Decisions** — [ADR-0001: Python backend, Docker-free](docs/adr/0001-python-backend-no-docker.md) · [ADR-0002: Portable geo storage](docs/adr/0002-portable-geo-storage.md)
+- **Decisions** — [ADR-0001: Python backend, Docker-free](docs/adr/0001-python-backend-no-docker.md) · [ADR-0002: Portable geo storage](docs/adr/0002-portable-geo-storage.md) · [ADR-0003: In-process ML plane](docs/adr/0003-in-process-ml-plane.md)
 
 > Note: the architecture/database docs describe the original Node.js design; where the implementation diverges (Python stack, deferred PostGIS), the ADRs are authoritative. Amendment banners on affected docs point to them.
